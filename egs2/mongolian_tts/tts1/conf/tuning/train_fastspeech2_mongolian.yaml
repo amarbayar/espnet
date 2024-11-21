@@ -15,12 +15,12 @@
 ##########################################################
 tts: fastspeech2      # model architecture
 tts_conf:             # keyword arguments for the selected model
-    adim: 384         # attention dimension
+    adim: 512         # attention dimension
     aheads: 2         # number of attention heads
     elayers: 4        # number of encoder layers
-    eunits: 1536      # number of encoder ff units
+    eunits: 2048      # number of encoder ff units
     dlayers: 4        # number of decoder layers
-    dunits: 1536      # number of decoder ff units
+    dunits: 2048      # number of decoder ff units
     positionwise_layer_type: conv1d   # type of position-wise layer
     positionwise_conv_kernel_size: 3  # kernel size of position wise conv layer
     duration_predictor_layers: 2      # number of layers of duration predictor
@@ -62,11 +62,21 @@ tts_conf:             # keyword arguments for the selected model
 pitch_extract: dio           # pitch extractor type
 pitch_extract_conf:
     reduction_factor: 1
+    fs: 24000
+    n_fft: 2048
+    hop_length: 300
+    f0max: 400
+    f0min: 80
 pitch_normalize: global_mvn  # normalizer for the pitch feature
 energy_extract: energy       # energy extractor type
 energy_extract_conf:
     reduction_factor: 1
+    fs: 24000
+    n_fft: 2048 
+    hop_length: 300
+    win_length: 1200
 energy_normalize: global_mvn # normalizer for the energy feature
+
 
 ##########################################################
 #            OPTIMIZER & SCHEDULER SETTING               #
@@ -87,11 +97,11 @@ max_epoch: 1000           # number of epochs
 grad_clip: 1.0            # gradient clipping norm
 grad_noise: false         # whether to use gradient noise injection
 accum_grad: 8             # gradient accumulation
-batch_bins: 3000000       # batch bins (feats_type=raw)
+batch_bins: 12000000      # batch bins (feats_type=raw)
 batch_type: numel         # how to make batch
 sort_in_batch: descending # how to sort data in making batch
 sort_batch: descending    # how to sort created batches
-num_workers: 1            # number of workers of data loader
+num_workers: 8            # number of workers of data loader
 train_dtype: float32      # dtype in training
 log_interval: null        # log interval in iterations
 keep_nbest_models: 5      # number of models to keep
@@ -104,3 +114,7 @@ best_model_criterion:     # criterion to save the best models
 -   - train
     - loss
     - min
+
+cudnn_enabled: true      # Enable cuDNN
+cudnn_benchmark: true    # Enable cuDNN benchmarking
+cudnn_deterministic: false  # Disable deterministic mode for speed
