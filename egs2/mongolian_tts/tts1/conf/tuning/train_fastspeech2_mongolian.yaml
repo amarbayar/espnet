@@ -28,7 +28,7 @@ tts_conf:             # keyword arguments for the selected model
     duration_predictor_kernel_size: 3 # filter size of duration predictor
     postnet_layers: 5                 # number of layers of postnset
     postnet_filts: 5                  # filter size of conv layers in postnet
-    postnet_chans: 256                # number of channels of conv layers in postnet
+    postnet_chans: 512               # number of channels of conv layers in postnet
     use_masking: True                 # whether to apply masking for padded part in loss calculation
     use_scaled_pos_enc: True          # whether to use scaled positional encoding
     encoder_normalize_before: True    # whether to perform layer normalization before the input
@@ -37,23 +37,23 @@ tts_conf:             # keyword arguments for the selected model
     init_type: xavier_uniform         # initialization type
     init_enc_alpha: 1.0               # initial value of alpha of encoder scaled position encoding
     init_dec_alpha: 1.0               # initial value of alpha of decoder scaled position encoding
-    transformer_enc_dropout_rate: 0.2            # dropout rate for transformer encoder layer
-    transformer_enc_positional_dropout_rate: 0.2 # dropout rate for transformer encoder positional encoding
-    transformer_enc_attn_dropout_rate: 0.2       # dropout rate for transformer encoder attention layer
-    transformer_dec_dropout_rate: 0.2            # dropout rate for transformer decoder layer
-    transformer_dec_positional_dropout_rate: 0.2 # dropout rate for transformer decoder positional encoding
-    transformer_dec_attn_dropout_rate: 0.2       # dropout rate for transformer decoder attention layer
+    transformer_enc_dropout_rate: 0.1
+    transformer_enc_positional_dropout_rate: 0.1
+    transformer_enc_attn_dropout_rate: 0.1
+    transformer_dec_dropout_rate: 0.1
+    transformer_dec_positional_dropout_rate: 0.1
+    transformer_dec_attn_dropout_rate: 0.1
+    pitch_predictor_dropout: 0.2
+    energy_predictor_dropout: 0.2
     pitch_predictor_layers: 5                  # number of conv layers in pitch predictor
     pitch_predictor_chans: 256                 # number of channels of conv layers in pitch predictor
     pitch_predictor_kernel_size: 5             # kernel size of conv leyers in pitch predictor
-    pitch_predictor_dropout: 0.5               # dropout rate in pitch predictor
     pitch_embed_kernel_size: 1                 # kernel size of conv embedding layer for pitch
     pitch_embed_dropout: 0.0                   # dropout rate after conv embedding layer for pitch
-    stop_gradient_from_pitch_predictor: true   # whether to stop the gradient from pitch predictor to encoder
+    stop_gradient_from_pitch_predictor: false  # whether to stop the gradient from pitch predictor to encoder
     energy_predictor_layers: 2                 # number of conv layers in energy predictor
     energy_predictor_chans: 256                # number of channels of conv layers in energy predictor
     energy_predictor_kernel_size: 3            # kernel size of conv leyers in energy predictor
-    energy_predictor_dropout: 0.5              # dropout rate in energy predictor
     energy_embed_kernel_size: 1                # kernel size of conv embedding layer for energy
     energy_embed_dropout: 0.0                  # dropout rate after conv embedding layer for energy
     stop_gradient_from_energy_predictor: false # whether to stop the gradient from energy predictor to encoder
@@ -64,19 +64,26 @@ pitch_extract_conf:
     reduction_factor: 1
     fs: 24000
     n_fft: 2048
-    hop_length: 300
-    f0max: 400
-    f0min: 80
+    hop_length: 256  # Changed from 300
+    f0max: 350   # Already suggested this change
+    f0min: 100   # Already suggested this chang
+# Add these parameters
+pitch_normalize_conf:
+    std_floor: 0.5    # Prevent too small std
+energy_normalize_conf:
+    std_floor: 0.5    # Prevent too small std
 pitch_normalize: global_mvn  # normalizer for the pitch feature
 energy_extract: energy       # energy extractor type
 energy_extract_conf:
     reduction_factor: 1
     fs: 24000
     n_fft: 2048 
-    hop_length: 300
-    win_length: 1200
+    hop_length: 256  # Changed from 300
+    win_length: 1024  # Changed from 1200
 energy_normalize: global_mvn # normalizer for the energy feature
-
+duration_predictor_conf:
+    clip_min: 0
+    clip_max: 20
 
 ##########################################################
 #            OPTIMIZER & SCHEDULER SETTING               #
@@ -86,7 +93,7 @@ optim_conf:            # keyword arguments for selected optimizer
     lr: 1.0            # learning rate
 scheduler: noamlr      # scheduler type
 scheduler_conf:        # keyword arguments for selected scheduler
-    model_size: 384    # model size, a.k.a., attention dimension
+    model_size: 512    # model size, a.k.a., attention dimension
     warmup_steps: 4000 # the number of warmup steps
 
 ##########################################################

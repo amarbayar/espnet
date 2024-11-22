@@ -1,118 +1,83 @@
 import os
-import sys
 import csv
+import random
+import unicodedata
 from pathlib import Path
+import subprocess
 
-def split_metadata(metadata_file, train_file, dev_file, test_file, train_ratio=0.8, dev_ratio=0.1):
-    """Splits metadata into train, dev, and test sets."""
-    with open(metadata_file, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-    
-    total_lines = len(lines)
-    n_train = int(total_lines * train_ratio)
-    n_dev = int(total_lines * dev_ratio)
-    n_test = total_lines - n_train - n_dev
-    
-    print(f"Total lines: {total_lines}")
-    print(f"Train: {n_train}, Dev: {n_dev}, Test: {n_test}")
+def normalize_text(text):
+    """Normalize text to ensure consistency and pass validation."""
+    return unicodedata.normalize("NFC", text)
 
+def prepare_mb_data(metadata_file, out_dir, train_ratio=0.9, valid_ratio=0.05):
+    """Prepare data using only MB speaker utterances."""
+    os.makedirs(out_dir, exist_ok=True)
+    
+    # Collect MB utterances
+    mb_data = []
+    with open(metadata_file, 'r', encoding='utf-8') as f:
+        reader = csv.reader(f, delimiter='|')
+        for row in reader:
+            if row[0].startswith('MB'):
+                # Normalize the text to handle Cyrillic properly
+                utt_id, text = row[0], normalize_text(row[1])
+                mb_data.append((utt_id, text))
+    
+    # Shuffle data
+    random.seed(42)  # for reproducibility
+    random.shuffle(mb_data)
+    
+    # Split data
+    total = len(mb_data)
+    n_train = int(total * train_ratio)
+    n_valid = int(total * valid_ratio)
+    
+    train_data = mb_data[:n_train]
+    valid_data = mb_data[n_train:n_train + n_valid]
+    test_data = mb_data[n_train + n_valid:]
+    
     # Write splits
-    with open(train_file, "w", encoding="utf-8") as train_f:
-        train_f.writelines(lines[:n_train])
+    splits = {
+        'train': train_data,
+        'valid': valid_data,
+        'test': test_data
+    }
     
-    with open(dev_file, "w", encoding="utf-8") as dev_f:
-        dev_f.writelines(lines[n_train:n_train + n_dev])
-    
-    with open(test_file, "w", encoding="utf-8") as test_f:
-        test_f.writelines(lines[n_train + n_dev:])
-    
-    print(f"Train file: {len(lines[:n_train])} lines")
-    print(f"Dev file: {len(lines[n_train:n_train + n_dev])} lines")
-    print(f"Test file: {len(lines[n_train + n_dev:])} lines")
-
-
-def process_split(set_name, metadata_file, audio_dir, output_dir):
-    """Processes metadata split into wav.scp, text, and utt2spk."""
-    print(f"Processing {set_name} set...")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    wav_scp = output_dir / "wav.scp"
-    text = output_dir / "text"
-    utt2spk = output_dir / "utt2spk"
-
-    # Open output files
-    with wav_scp.open("w", encoding="utf-8") as wav_f, \
-         text.open("w", encoding="utf-8") as text_f, \
-         utt2spk.open("w", encoding="utf-8") as utt2spk_f:
+    for split_name, split_data in splits.items():
+        split_dir = Path(out_dir) / split_name
+        os.makedirs(split_dir, exist_ok=True)
         
-        with open(metadata_file, "r", encoding="utf-8") as f:
-            reader = csv.reader(f, delimiter="|")
-            for file_id, transcript in reader:
-                file_id = file_id.strip()
-                transcript = transcript.strip().strip('"')
-                utt_id = f"mn_{file_id}"
-                wav_file = audio_dir / f"{file_id}.wav"
+        # Sort the split data by utt_id
+        split_data = sorted(split_data, key=lambda x: f"mb_{x[0]}")
+        
+        # Create wav.scp, text, and utt2spk
+        with open(split_dir / 'wav.scp', 'w', encoding='utf-8') as wav_f, \
+             open(split_dir / 'text', 'w', encoding='utf-8') as text_f, \
+             open(split_dir / 'utt2spk', 'w', encoding='utf-8') as utt2spk_f:
+            
+            for uttid, text in split_data:
+                # Create unique utterance ID
+                utt_id = f"mb_{uttid}"
+                wav_path = f"downloads/mongolian_tts/wavs/{uttid}.wav"
                 
-                if not wav_file.exists():
-                    print(f"Warning: audio file {wav_file} doesn't exist")
+                if not os.path.exists(wav_path):
+                    print(f"Warning: audio file {wav_path} doesn't exist")
                     continue
-
-                # Write to wav.scp, text, and utt2spk
-                wav_f.write(f"{utt_id} {wav_file}\n")
-                text_f.write(f"{utt_id} {transcript}\n")
-                utt2spk_f.write(f"{utt_id} mn_speaker1\n")
+                    
+                wav_f.write(f"{utt_id} {wav_path}\n")
+                text_f.write(f"{utt_id} {text}\n")
+                utt2spk_f.write(f"{utt_id} mb_speaker\n")
+        
+        # Generate spk2utt and ensure it's sorted
+        subprocess.run(
+            f"utils/utt2spk_to_spk2utt.pl {split_dir}/utt2spk | sort > {split_dir}/spk2utt",
+            shell=True, check=True
+        )
     
-    # Generate spk2utt
-    spk2utt = output_dir / "spk2utt"
-    spk2utt_content = {}
-    with utt2spk.open("r", encoding="utf-8") as utt2spk_f:
-        for line in utt2spk_f:
-            utt_id, spk_id = line.strip().split()
-            spk2utt_content.setdefault(spk_id, []).append(utt_id)
-    
-    with spk2utt.open("w", encoding="utf-8") as spk2utt_f:
-        for spk_id, utt_ids in spk2utt_content.items():
-            spk2utt_f.write(f"{spk_id} {' '.join(utt_ids)}\n")
-    
-    print(f"Finished processing {set_name} set!")
-
-
-def main(db_root="downloads/mongolian_tts"):
-    metadata_file = Path(db_root) / "metadata.csv"
-    audio_dir = Path(db_root) / "wavs"
-
-    if not metadata_file.exists():
-        print(f"Cannot find metadata.csv at {metadata_file}")
-        sys.exit(1)
-    
-    if not audio_dir.exists():
-        print(f"Cannot find wavs directory at {audio_dir}")
-        sys.exit(1)
-    
-    data_dir = Path("data")
-    train_dir = data_dir / "train"
-    dev_dir = data_dir / "dev"
-    test_dir = data_dir / "test"
-
-    train_metadata = train_dir / "metadata.txt"
-    dev_metadata = dev_dir / "metadata.txt"
-    test_metadata = test_dir / "metadata.txt"
-
-    data_dir.mkdir(parents=True, exist_ok=True)
-
-    # Split metadata
-    split_metadata(metadata_file, train_metadata, dev_metadata, test_metadata)
-
-    # Process splits
-    for set_name, metadata_path, output_dir in [
-        ("train", train_metadata, train_dir),
-        ("dev", dev_metadata, dev_dir),
-        ("test", test_metadata, test_dir),
-    ]:
-        process_split(set_name, metadata_path, audio_dir, output_dir)
-    
-    print("Data preparation completed!")
-
+    print(f"\nData split statistics:")
+    print(f"Train set: {len(train_data)} utterances")
+    print(f"Valid set: {len(valid_data)} utterances")
+    print(f"Test set: {len(test_data)} utterances")
 
 if __name__ == "__main__":
-    main()
+    prepare_mb_data("downloads/mongolian_tts/metadata.csv", "data")

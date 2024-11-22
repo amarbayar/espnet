@@ -34,8 +34,8 @@ log "Created data directories"
 # Run the new Python script for data preparation
 python3 data_prep.py "${db_root}"
 
-# Process each split: train, dev, test
-for split in train dev test; do
+# Process each split: train, valid, test
+for split in train valid test; do
     log "Processing ${split} set..."
     
     if [ -f data/${split}/utt2spk ]; then
@@ -45,7 +45,7 @@ for split in train dev test; do
 
         # Fix and validate data directory
         utils/fix_data_dir.sh data/${split}
-        utils/validate_data_dir.sh --no-feats data/${split}
+        utils/validate_data_dir.sh --non-print --no-feats data/${split} 
         log "Validated ${split} directory"
     else
         log "ERROR: utt2spk file not created for ${split}"

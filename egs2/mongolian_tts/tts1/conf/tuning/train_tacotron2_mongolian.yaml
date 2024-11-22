@@ -1,0 +1,72 @@
+# Optimized Tacotron2 config for Mongolian TTS
+##########################################################
+#                  TTS MODEL SETTING                      #
+##########################################################
+tts: tacotron2                   # model architecture
+tts_conf:
+    embed_dim: 512               # char embedding dimension
+    elayers: 1                   # encoder layers
+    eunits: 512                  # encoder units
+    econv_layers: 3              # encoder conv layers
+    econv_chans: 512            
+    econv_filts: 5              
+    atype: location             
+    adim: 512                    # attention dimension
+    aconv_chans: 32             # attention conv channels
+    aconv_filts: 15             # attention conv filter size
+    cumulate_att_w: true        
+    dlayers: 2                   # decoder layers
+    dunits: 1024                # decoder units
+    prenet_layers: 2            
+    prenet_units: 256          
+    postnet_layers: 5           
+    postnet_chans: 512         
+    postnet_filts: 5           
+    output_activation: null     
+    use_batch_norm: true       
+    use_concate: true          
+    use_residual: false        
+    dropout_rate: 0.5          
+    zoneout_rate: 0.1          
+    reduction_factor: 1         
+    spk_embed_dim: null        
+    use_masking: true          
+    use_weighted_masking: false
+    bce_pos_weight: 5.0        
+    use_guided_attn_loss: true  # Use guided attention
+    guided_attn_loss_sigma: 0.4
+    guided_attn_loss_lambda: 1.0
+
+##########################################################
+#                  OPTIMIZER SETTING                      #
+##########################################################
+optim: adam
+optim_conf:
+    lr: 1.0e-03                 
+    eps: 1.0e-06                
+    weight_decay: 0.0           
+
+scheduler: warmuplr
+scheduler_conf:
+    warmup_steps: 2000          # Increased warmup for stability
+
+##########################################################
+#                OTHER TRAINING SETTING                   #
+##########################################################
+max_epoch: 200                 
+grad_clip: 1.0                 
+grad_noise: false              
+accum_grad: 1                 
+batch_size: 32                # Fixed batch size since we have limited data
+sort_in_batch: descending     
+sort_batch: descending        
+num_workers: 16               
+train_dtype: float32         
+log_interval: 200             
+keep_nbest_models: 5         
+num_att_plot: 3              
+seed: 42                     
+num_iters_per_epoch: 1000    # Adjusted for dataset size
+
+batch_type: sorted     
+batch_bins: 3000000          # Adjusted based on your dataset
